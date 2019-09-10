@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Register
+{% endblock %}
+
+{% block main %}
+
+
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<script>
+//The script is small enough and related to register
+//So I'm keeping it here
+
+    $(document).ready(function() {
+        let input = document.querySelector('input.form-control[name="username"]');
+        input.onkeyup = function() {
+        $.get('/check', { username: input.value }, function(data) {
+                if (data === true) {
+                    input.style.borderColor = "green";
+                }
+                else {
+                    input.style.borderColor = "red";
+                    document.querySelector('form').onsubmit = function() {
+                        event.preventDefault();
+                    };
+                }
+            });
+        };
+    });
+
+/*
+    $(document).ready(function() {
+        let input = document.querySelector('input.form-control[name="username"]');
+        //let form = document.querySelector('input.form-control');
+        document.querySelector('form').onsubmit = function() {
+            event.preventDefault();
+        };
+        input.onkeyup = function() {
+            $.get('/check', { username: input.value }, function(data) {
+                if (data === true) {
+                    input.style.borderColor = "green";
+                    document.querySelector('form').submit();
+                }
+                else {
+                    input.style.borderColor = "red";
+                }
+            });
+        };
+    });
+*/
+
+</script>
+
+    <form action="/register" method="post">
+        <div class="form-group" id="username_div">
+            <input autocomplete="off" autofocus class="form-control" name="username" placeholder="Username" type="text">
+        </div>
+        <div class="form-group">
+            <input class="form-control" name="password" placeholder="Password" type="password">
+        </div>
+        <div class="form-group">
+            <input class="form-control" name="confirmation" placeholder="Re-type Password" type="password">
+        </div>
+        <button class="btn btn-primary" type="submit">Register</button>
+    </form>
+{% endblock %}

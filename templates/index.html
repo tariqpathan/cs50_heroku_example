@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Index
+{% endblock %}
+
+{% block main %}
+    <table class="table">
+        <th>
+            Stock
+        </th>
+        <th>
+            Shares Owned
+        </th>
+        <th>
+            Current Price
+        </th>
+        <th>
+            Value
+        </th>
+        {% for row in rows %}
+
+        <tr>
+            <td> {{ row.name }} </td>
+            <td> {{ row.shares }} </td>
+            <td> {{ row.price | usd }} </td>
+            <td> {{ row.value | usd }} </td>
+        </tr>
+
+        {% endfor %}
+
+        <tr>
+            <td colspan="3"> <b>Cash: </b></td>
+            <td> {{ cash | usd }} </td>
+        </tr>
+        <tr>
+            <td colspan="3"> <b>Total Value: </b></td>
+            <td> {{ total_assets | usd }} </td>
+        </tr>
+
+    </table>
+
+
+{% endblock %}

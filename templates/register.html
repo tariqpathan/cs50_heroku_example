@@ -18,37 +18,16 @@
         $.get('/check', { username: input.value }, function(data) {
                 if (data === true) {
                     input.style.borderColor = "green";
+                    document.querySelector('form').disabled = false;
                 }
-                else {
+                else if (data === false) {
                     input.style.borderColor = "red";
-                    document.querySelector('form').onsubmit = function() {
-                        event.preventDefault();
+                    document.querySelector('form').disabled = true;
                     };
                 }
             });
         };
     });
-
-/*
-    $(document).ready(function() {
-        let input = document.querySelector('input.form-control[name="username"]');
-        //let form = document.querySelector('input.form-control');
-        document.querySelector('form').onsubmit = function() {
-            event.preventDefault();
-        };
-        input.onkeyup = function() {
-            $.get('/check', { username: input.value }, function(data) {
-                if (data === true) {
-                    input.style.borderColor = "green";
-                    document.querySelector('form').submit();
-                }
-                else {
-                    input.style.borderColor = "red";
-                }
-            });
-        };
-    });
-*/
 
 </script>
 

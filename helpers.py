@@ -63,3 +63,6 @@ def lookup(symbol):
 def usd(value):
     """Format value as USD."""
     return f"${value:,.2f}"
+
+def datetimeformat(value, format='%d-%m-%Y %H:%M'):
+    return value.strftime(format)

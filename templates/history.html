@@ -33,7 +33,7 @@
             <td> {{ row.price | usd }} </td>
             <td> {{ row.amount | usd }} </td>
             <td> {{ row.bought }}</td>
-            <td> {{ row.Timestamp }} </td>
+            <td> {{ row.timestamp | datetimeformat }} </td>
         </tr>
 
         {% endfor %}

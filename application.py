@@ -1,13 +1,15 @@
 import os
 
-from cs50 import SQL
 from flask import Flask, flash, jsonify, redirect, render_template, request, session
 from flask_session import Session
 from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.exc import IntegrityError
 
-from helpers import apology, login_required, lookup, usd
+from helpers import apology, login_required, lookup, usd, datetimeformat
 
 # Configure application
 app = Flask(__name__)
@@ -26,6 +28,7 @@ def after_request(response):
 
 # Custom filter
 app.jinja_env.filters["usd"] = usd
+app.jinja_env.filters["datetimeformat"] = datetimeformat
 
 # Configure session to use filesystem (instead of signed cookies)
 app.config["SESSION_FILE_DIR"] = mkdtemp()
@@ -33,12 +36,10 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-# Configure CS50 Library to use SQLite database
-db = SQL("postgres://cezodtnwmyvbhz:8155b6c6a9070c6b49ab1734425f4ed3d6d2b8d75a273faf4299ba8ac4ff64ca@ec2-176-34-183-20.eu-west-1.compute.amazonaws.com:5432/d2s1ov8hnefscj")
-
-# Make sure API key is set
-#if not os.environ.get("API_KEY"):
-    #raise RuntimeError("API_KEY not set")
+# Configure CS50 Library to use Heroku Postgresql database
+#DATABASE_URL = os.getenv('DATABASE_URL')
+engine = create_engine(os.getenv("DATABASE_URL"))
+db = scoped_session(sessionmaker(bind=engine))
 
 
 @app.route("/")
@@ -46,10 +47,17 @@ db = SQL("postgres://cezodtnwmyvbhz:8155b6c6a9070c6b49ab1734425f4ed3d6d2b8d75a27
 def index():
     """Show portfolio of stocks"""
 
-    rows = db.execute("SELECT * FROM owned WHERE user_id = :user_id", user_id=session["user_id"])
-    user_data = db.execute("SELECT * FROM users WHERE id = :user_id", user_id=session["user_id"])
+    results = db.execute("SELECT * FROM owned WHERE user_id = :user_id", {"user_id": session["user_id"]}).fetchall()
+    rows = []
+    for result in results:
+        row = dict(result)
+        rows.append(row)
+    
+    # Get the row for the appropriate user and find the cash balance
+    user_data = db.execute("SELECT * FROM users WHERE id = :user_id", {"user_id": session["user_id"]}).fetchall()
     cash = user_data[0]["cash"]
-    total_assets = cash
+    # Value of stocks will be added to assets
+    total_assets = float(cash)
 
     # Obtain data from IEX and update dictionary
     for row in rows:
@@ -58,7 +66,7 @@ def index():
         row["price"] = (stock_data["price"])
         value = float(stock_data["price"]) * float(row["shares"])
         row["value"] = (value)
-        total_assets += value
+        total_assets += float(value)
     return render_template("index.html", rows=rows, cash=cash, total_assets=total_assets)
 
 
@@ -80,38 +88,40 @@ def buy():
         if (shares < 1) or (shares % 1 != 0):
             return apology("Check number", 400)
 
-        rows = db.execute("SELECT * FROM users WHERE id = :user_id", user_id=session["user_id"])
+        rows = db.execute("SELECT * FROM users WHERE id = :user_id", {"user_id": session["user_id"]}).fetchall()
         stock_cost = float(stock_data["price"]) * float(request.form.get("shares"))
 
         if rows[0]["cash"] < stock_cost:
-            return apology("Ya pleb", 400)
+            return apology("Not enough cash", 400)
 
         else:
-            new_cash = rows[0]["cash"] - stock_cost
+            new_cash = float(rows[0]["cash"]) - stock_cost
 
-            # Change users table and set new cash amount
-            db.execute("UPDATE OR ABORT users SET cash = :cash WHERE id = :id",
-                       cash=new_cash, id=session["user_id"])
-
-            # Add transaction to ledger
-            db.execute("INSERT INTO transactions (user_id, symbol, bought, amount, shares)"
-                       " VALUES (:user_id, :symbol, 1, :amount, :shares)",
-                       user_id=session["user_id"], symbol=stock_data["symbol"], amount=stock_cost,
-                       shares=int(request.form.get("shares")))
-
-            # Update owned table - not using SQL to do this because UPSERT not available in v3.22
-            result = db.execute("UPDATE OR ABORT owned SET shares = shares + :new_shares"
-                                " WHERE user_id = :user_id AND symbol = :symbol",
-                                user_id=session["user_id"], symbol=stock_data["symbol"],
-                                new_shares=int(request.form.get("shares")))
-
-            # Insert a new entry into owned table if update fails
-            if not result:
-                db.execute("INSERT INTO owned (user_id, symbol, shares) VALUES (:user_id, :symbol, :shares)",
-                           user_id=session["user_id"], symbol=stock_data["symbol"],
-                           shares=request.form.get("shares"))
-
-            return redirect("/")
+            try:
+                # Change users table and set new cash amount
+                db.execute("UPDATE users SET cash = :cash WHERE id = :id",
+                        {"cash": new_cash, "id": session["user_id"]})
+                
+                # Add transaction to ledger
+                db.execute("INSERT INTO transactions (user_id, symbol, bought, amount, shares)"
+                        " VALUES (:user_id, :symbol, TRUE, :amount, :shares)",
+                        {"user_id": session["user_id"], "symbol": stock_data["symbol"], "amount": stock_cost,
+                        "shares": int(request.form.get("shares"))})
+                
+                # Insert into table to show ownership of shares or update on conflict
+                result = db.execute("INSERT INTO owned VALUES (:user_id, :symbol, :new_shares) "
+                                    "ON CONFLICT (user_id, symbol) DO UPDATE "
+                                    "SET shares = owned.shares + :new_shares "
+                                    "WHERE owned.user_id = :user_id AND owned.symbol = :symbol",
+                                    {"user_id": session["user_id"], "symbol": stock_data["symbol"],
+                                    "new_shares": request.form.get("shares")})
+            except IntegrityError:
+                db.rollback()
+                return apology("Could not purchase", 400)
+            
+            db.commit()
+            
+        return redirect("/")
 
     else:
         return render_template("buy.html")
@@ -122,9 +132,9 @@ def check():
     """Return true if username available, else false, in JSON format"""
 
     username = request.args.get("username")
-    registered_users = db.execute("SELECT * FROM users WHERE username = :username",
-                                  username=username)
-
+    registered_users = db.execute("SELECT * FROM users WHERE username ILIKE :username",
+                                  {"username": username}).fetchall()
+    db.close()
     if (len(username) > 0 and not registered_users):
         return jsonify(True)
     else:
@@ -136,9 +146,17 @@ def check():
 def history():
     """Show history of transactions"""
 
-    rows = db.execute("SELECT * FROM transactions WHERE user_id = :user_id ORDER BY Timestamp ASC",
-                      user_id=session["user_id"])
+    results = db.execute("SELECT * FROM transactions WHERE user_id = :user_id ORDER BY Timestamp ASC",
+                      {"user_id": session["user_id"]}).fetchall()
+    
+    rows = []
+
+    for result in results:
+        row = dict(result)
+        rows.append(row)
+    
     for row in rows:
+        print(row["timestamp"])
         stock_data = lookup(row["symbol"])
         row["name"] = (stock_data["name"])
         row["price"] = (float(row["amount"]) / float(row["shares"]))
@@ -170,7 +188,7 @@ def login():
 
         # Query database for username
         rows = db.execute("SELECT * FROM users WHERE username = :username",
-                          username=request.form.get("username"))
+                          {"username": request.form.get("username")}).fetchall()
 
         # Ensure username exists and password is correct
         if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
@@ -234,8 +252,9 @@ def register():
             return apology("passwords must match", 400)
 
         result = db.execute("INSERT INTO users (username, hash) VALUES (:username, :hash)",
-                            username=request.form.get("username"),
-                            hash=generate_password_hash(request.form.get("password")))
+                            {"username": request.form.get("username"),
+                            "hash": generate_password_hash(request.form.get("password"))})
+        db.commit()
 
         # Return error if username is duplicate
         if not result:
@@ -243,8 +262,7 @@ def register():
 
         # Get the new users id
         user_row = db.execute("SELECT id FROM users WHERE username = :username",
-                              username=request.form.get("username"))
-
+                              {"username": request.form.get("username")}).fetchall()
         # Remember which user has logged in
         session["user_id"] = user_row[0]["id"]
 
@@ -266,10 +284,17 @@ def sell():
         Get data on which stocks a user owns.
         Pass that data into the form
         """
-        rows = db.execute("SELECT * FROM owned WHERE user_id = :user_id", user_id=session["user_id"])
-
-        if not rows:
+        results = db.execute("SELECT * FROM owned WHERE user_id = :user_id", {"user_id": session["user_id"]}).fetchall()
+        
+        if not results:
             return apology("You own nothing", 400)
+        
+        # Create an array for the results to be added in
+        rows = []
+
+        for result in results:
+            row = dict(result)
+            rows.append(row)
 
         # Obtain data from IEX and update dictionary
         for row in rows:
@@ -283,38 +308,45 @@ def sell():
 
         # Getting data to verify stock owned by user
         selling_stock = db.execute("SELECT * FROM owned WHERE user_id = :user_id AND symbol = :symbol",
-                                   user_id=session["user_id"], symbol=request.form.get("symbol"))
+                                   {"user_id": session["user_id"], "symbol": request.form.get("symbol")}).fetchall()
 
-        print(request.form.get("shares"))
         if selling_stock[0]["shares"] < int(request.form.get("shares")):
-            return apology("Theif", 400)
+            return apology("Not enough shares to sell", 400)
 
         # Need to get cash to add to user once we sell stock
-        user_data = db.execute("SELECT * FROM users WHERE id = :user_id", user_id=session["user_id"])
+        user_data = db.execute("SELECT * FROM users WHERE id = :user_id", {"user_id": session["user_id"]}).fetchall()
         cash = user_data[0]["cash"]
 
         stock_data = lookup(request.form.get("symbol"))
         sold_stock_value = float(stock_data["price"]) * float(request.form.get("shares"))
 
-        # Change users table and set new cash amount
-        db.execute("UPDATE OR ABORT users SET cash = cash + :sold WHERE id = :id",
-                   sold=sold_stock_value, id=session["user_id"])
+        try:
+            # Change users table and set new cash amount
+            db.execute("UPDATE users SET cash = cash + :sold WHERE id = :id",
+                    {"sold": sold_stock_value, "id": session["user_id"]})
 
-        # Add transaction to ledger
-        db.execute("INSERT INTO transactions (user_id, symbol, bought, amount, shares)"
-                   " VALUES (:user_id, :symbol, 0, :amount, :shares)",
-                   user_id=session["user_id"], symbol=stock_data["symbol"], amount=sold_stock_value,
-                   shares=int(request.form.get("shares")))
+            # Add transaction to ledger
+            db.execute("INSERT INTO transactions (user_id, symbol, bought, amount, shares)"
+                    " VALUES (:user_id, :symbol, FALSE, :amount, :shares)",
+                    {"user_id": session["user_id"], "symbol": stock_data["symbol"], "amount": sold_stock_value,
+                    "shares": int(request.form.get("shares"))})
 
-        # Update owned table - not using SQL to do this because UPSERT not available in v3.22
-        db.execute("UPDATE OR ABORT owned SET shares = shares - :new_shares"
-                   " WHERE user_id = :user_id AND symbol = :symbol",
-                   user_id=session["user_id"], symbol=stock_data["symbol"],
-                   new_shares=int(request.form.get("shares")))
+            # Update owned table - not using SQL to do this because UPSERT not available in v3.22
+            db.execute("UPDATE owned SET shares = shares - :new_shares"
+                    " WHERE user_id = :user_id AND symbol = :symbol",
+                    {"user_id": session["user_id"], "symbol": stock_data["symbol"],
+                    "new_shares": int(request.form.get("shares"))})
 
-        # Cleanup owned table to remove instances where shares = 0
-        db.execute("DELETE FROM owned WHERE user_id = :user_id AND shares = 0",
-                   user_id=session["user_id"])
+            # Cleanup owned table to remove instances where shares = 0
+            db.execute("DELETE FROM owned WHERE user_id = :user_id AND shares = 0",
+                    {"user_id": session["user_id"]})
+        
+        except IntegrityError:
+            db.rollback()
+            return apology("Could not sell shares", 400)
+        
+        # Commit all transactions
+        db.commit()
 
         return redirect("/")
 

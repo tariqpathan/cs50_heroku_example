@@ -1,4 +1,5 @@
 import os
+import re
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, session
 from flask_session import Session
@@ -10,6 +11,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.exc import IntegrityError
 
 from helpers import apology, login_required, lookup, usd, datetimeformat
+from retrieve_stocks import StockData
 
 # Configure application
 app = Flask(__name__)
@@ -37,7 +39,6 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
 # Configure CS50 Library to use Heroku Postgresql database
-#DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(os.getenv("DATABASE_URL"))
 db = scoped_session(sessionmaker(bind=engine))
 
@@ -173,7 +174,8 @@ def login():
     """Log user in"""
 
     # Forget any user_id
-    session.clear()
+    if session.get("user_id"):
+        session.pop("user_id")
 
     # User reached route via POST (as by submitting a form via POST)
     if request.method == "POST":
@@ -192,13 +194,13 @@ def login():
 
         # Ensure username exists and password is correct
         if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
-            return apology("invalid username and/or password", 403)
+            return jsonify(False)
 
         # Remember which user has logged in
         session["user_id"] = rows[0]["id"]
 
         # Redirect user to home page
-        return redirect("/")
+        return jsonify(True)
 
     # User reached route via GET (as by clicking a link or via redirect)
     else:
@@ -217,7 +219,7 @@ def logout():
 
 
 @app.route("/quote", methods=["GET", "POST"])
-@login_required
+#@login_required
 def quote():
     """Get stock quote."""
 
@@ -238,7 +240,8 @@ def register():
     """Register user"""
 
     # Forget user_id
-    session.clear()
+    if session.get("user_id"):
+        session.pop("user_id")
 
     if request.method == "POST":
 
@@ -273,6 +276,20 @@ def register():
     else:
         return render_template("register.html")
 
+
+@app.route("/search_stocks")
+def search_stocks():
+    """Searches all the stocks in IEX"""
+    if session.get("stock_data") is None:
+        print("stock data is none")
+        session["stock_data"] = StockData().stock_data
+
+    returned_stocks = []
+    search = request.args.get("q")    
+    for stock in session["stock_data"]:
+        if re.match(rf"{search}.*", stock['name'], re.IGNORECASE) and len(returned_stocks) < 10:
+            returned_stocks.append(stock)
+    return jsonify(returned_stocks)
 
 @app.route("/sell", methods=["GET", "POST"])
 @login_required

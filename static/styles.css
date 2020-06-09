@@ -51,7 +51,72 @@ main img
     border-width: 4px;
 }
 
-.name_unavailable
-{
-    border-width: 8px;
+.name_unavailable {
+    border-width: 4px;
+}
+
+input:valid {
+    border-color: green;
+}
+
+input:invalid {
+    border-color: red;
+}
+
+/* index page styling */
+.quantity-group {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: center;
+}
+
+div.quantity-group-btn  {
+    height: 100%;
+    align-self: center;
+    padding: 0.2em;
+}
+
+button.quantity.btn {
+    padding: 0.2em;
+}
+
+.quantity.btn:focus {
+    box-shadow: none;
+}
+
+.form-control.input-number.input-share-value {
+    width: 3em;
+}
+
+/* typeahead styling */
+.tt-menu {    /* dropdown menu */
+  width: auto;
+  margin-top: 4px;
+  padding: 4px 0;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 5px 10px rgba(0,0,0,.2);
+  overflow-y: auto;
+}
+
+.tt-suggestion /* each individual result */{
+  padding: 3px 20px;
+  line-height: 24px;
+}
+
+.tt-suggestion.tt-cursor,.tt-suggestion:hover {
+  color: #fff;
+  background-color: #0097cf;
+
+}
+
+.tt-suggestion p {
+  margin: 0;
+}
+
+.tt-hint{
+  position: absolute;
+  left: 10px;
 }

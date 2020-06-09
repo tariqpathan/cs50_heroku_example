@@ -6,18 +6,16 @@
 
 {% block main %}
     <table class="table">
-        <th>
-            Stock
-        </th>
-        <th>
-            Shares Owned
-        </th>
-        <th>
-            Current Price
-        </th>
-        <th>
-            Value
-        </th>
+        <colgroup span="4" width="15%"></colgroup>
+        <colgroup span="3"></colgroup>
+
+        <th>Name</th>
+        <th>Shares</th>
+        <th>Price</th>
+        <th>Value</th>
+        <th>Buy</th>
+        <th>Sell</th>
+        <th>Confirm</th>
         {% for row in rows %}
 
         <tr>
@@ -25,18 +23,61 @@
             <td> {{ row.shares }} </td>
             <td> {{ row.price | usd }} </td>
             <td> {{ row.value | usd }} </td>
+            <td>
+                <div class="quantity-group">
+                    <div class="quantity-group-btn">
+                        <button type="button" class="quantity btn btn-danger"  data-type="minus" data-field="">
+                            <span class="fa fa-minus" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <input type="text" name="quantity" class="form-control input-number input-share-value" min="1" max="100">
+
+                    <div class="quantity-group-btn">
+                        <button type="button" class="quantity btn btn-success" data-type="plus" data-field="">
+                            <span class="fa fa-plus" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </td>
+            
+            <td>
+                <div class="quantity-group">
+                    <div class="quantity-group-btn">
+                        <button type="button" class="quantity btn btn-danger"  data-type="minus" data-field="">
+                            <span class="fa fa-minus" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <input type="text" name="quantity" class="form-control input-number input-share-value" min="1" max="100">
+
+                    <div class="quantity-group-btn">
+                        <button type="button" class="quantity btn btn-success" data-type="plus" data-field="">
+                            <span class="fa fa-plus" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <button type="button" class="btn btn-success">
+                    <span class="fa fa-check" aria-hidden="true"></span>
+                </button>
+            </td>
+
         </tr>
 
         {% endfor %}
 
-        <tr>
-            <td colspan="3"> <b>Cash: </b></td>
-            <td> {{ cash | usd }} </td>
-        </tr>
-        <tr>
-            <td colspan="3"> <b>Total Value: </b></td>
-            <td> {{ total_assets | usd }} </td>
-        </tr>
+        <tfoot>
+            <tr>
+                <td> <b>Cash: </b></td>
+                <td> {{ cash | usd }} </td>
+            </tr>
+            <tr>
+                <td> <b>Total Value: </b></td>
+                <td> {{ total_assets | usd }} </td>
+            </tr>
+        </tfoot>
 
     </table>
 

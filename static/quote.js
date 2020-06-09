@@ -1,9 +1,9 @@
 $(document).ready(function() {
             
     $('#stock-search').typeahead({
-        minLength: 1,
+        hint: true,
         highlight: true,
-        hint: true
+        minLength: 1
     },
     {
         name: 'stocks',
@@ -14,8 +14,8 @@ $(document).ready(function() {
             suggestion: Handlebars.compile(
                 "<div>{{symbol}} - {{name}}</div>"
             ),
-            pending: function() { return "<div>Searching...</div>"; },
-            notFound: function() { return "<div>None Found</div>" }
+            pending: function() { return "<div> Searching... </div>"; },
+            notFound: function() { return "<div> No results found </div>" }
         }
     });
 
@@ -29,8 +29,13 @@ $(document).ready(function() {
 
             // Call typeahead's callback with search results (i.e., places)
             asyncResults(data);
-            console.log(data);
         });
     }
+
+    $('#stock-search').on("typeahead:selected", function(object, data, name) {
+        $.get("/stock_quote", {'symbol': data['symbol']}, function(result) {
+            $('#results').html(result);
+        });
+    });
 
 })

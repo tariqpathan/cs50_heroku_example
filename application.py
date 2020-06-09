@@ -225,7 +225,7 @@ def quote():
 
         stock_data = lookup(request.form.get("symbol"))
         if not stock_data:
-            return apology("Try again loser", 400)
+            return apology("Incorrect Symbol", 400)
 
         return render_template("quoted.html", stock=stock_data)
 
@@ -273,6 +273,29 @@ def register():
     else:
         return render_template("register.html")
 
+@app.route("/stock_quote")
+def stock_quote():
+    stock_quote_data = lookup(request.args.get('symbol'))
+    return render_template("quoted.html", stock=stock_quote_data)
+
+@app.route("/search_stocks")
+def search_stocks():
+    """Searches all the stocks in IEX"""
+    if session.get("stock_data") is None:
+        print("stock data is none")
+        session["stock_data"] = StockData().stock_data
+
+    returned_stocks = []
+    search = request.args.get("q")    
+    for stock in session["stock_data"]:
+        if len(returned_stocks) == 10:
+            return jsonify(returned_stocks)
+        elif re.match(rf"{search}.*", stock['symbol'], re.IGNORECASE):
+            returned_stocks.append(stock)
+            continue
+        elif re.match(rf"{search}.*", stock['name'], re.IGNORECASE):
+            returned_stocks.append(stock)
+    return jsonify(returned_stocks)
 
 @app.route("/sell", methods=["GET", "POST"])
 @login_required

@@ -5,14 +5,6 @@
 {% endblock %}
 
 {% block main %}
-<<<<<<< Updated upstream
-    <form action="/quote" method="post">
-        <div class="form-group">
-            <input autocomplete="off" autofocus class="form-control" name="symbol" placeholder="Stock Symbol" type="text">
-        </div>
-        <button class="btn btn-primary" type="submit">Quote Me!</button>
-    </form>
-=======
 <script src="{{ url_for('static', filename='quote.js') }}"></script>
 
 <form action="/quote" method="post" style="height:70vh" class="form-inline">
@@ -26,5 +18,4 @@
         
 </form>
 
->>>>>>> Stashed changes
 {% endblock %}

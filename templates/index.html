@@ -5,6 +5,11 @@
 {% endblock %}
 
 {% block main %}
+<script src="{{ url_for('static', filename='index.js') }}"></script>
+<!-- documentation at https://github.com/shaack/bootstrap-input-spinner -->
+<script src="{{ url_for('static', filename='bootstrap-input-spinner.js') }}"></script>
+<script src="https://use.fontawesome.com/6f12e9c89f.js"></script>
+
     <table class="table">
         <colgroup span="4" width="15%"></colgroup>
         <colgroup span="3"></colgroup>
@@ -24,40 +29,11 @@
             <td> {{ row.price | usd }} </td>
             <td> {{ row.value | usd }} </td>
             <td>
-                <div class="quantity-group">
-                    <div class="quantity-group-btn">
-                        <button type="button" class="quantity btn btn-danger"  data-type="minus" data-field="">
-                            <span class="fa fa-minus" aria-hidden="true"></span>
-                        </button>
-                    </div>
-
-                    <input type="text" name="quantity" class="form-control input-number input-share-value" min="1" max="100">
-
-                    <div class="quantity-group-btn">
-                        <button type="button" class="quantity btn btn-success" data-type="plus" data-field="">
-                            <span class="fa fa-plus" aria-hidden="true"></span>
-                        </button>
-                    </div>
+                <div class="aquantity-group">
+                    <input type="number" name="quantity" class="form-control input-number input-share-value" min="1" max="100">
                 </div>
             </td>
-            
-            <td>
-                <div class="quantity-group">
-                    <div class="quantity-group-btn">
-                        <button type="button" class="quantity btn btn-danger"  data-type="minus" data-field="">
-                            <span class="fa fa-minus" aria-hidden="true"></span>
-                        </button>
-                    </div>
-
-                    <input type="text" name="quantity" class="form-control input-number input-share-value" min="1" max="100">
-
-                    <div class="quantity-group-btn">
-                        <button type="button" class="quantity btn btn-success" data-type="plus" data-field="">
-                            <span class="fa fa-plus" aria-hidden="true"></span>
-                        </button>
-                    </div>
-                </div>
-            </td>
+           <td>Sell</td> 
             <td>
                 <button type="button" class="btn btn-success">
                     <span class="fa fa-check" aria-hidden="true"></span>

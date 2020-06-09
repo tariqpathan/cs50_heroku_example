@@ -7,6 +7,6 @@ $(document).ready(function() {
     colour until it is confirmed */
 
     // function to change the numbers in the input text box
-    
+    $("input[type='number']").inputSpinner()
 
 });
